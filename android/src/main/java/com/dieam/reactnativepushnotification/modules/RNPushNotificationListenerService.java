@@ -7,18 +7,17 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
-
 import com.dieam.reactnativepushnotification.helpers.ApplicationBadgeHelper;
 import com.facebook.react.ReactApplication;
 import com.facebook.react.ReactInstanceManager;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContext;
 import com.google.android.gms.gcm.GcmListenerService;
-
 import org.json.JSONObject;
-
 import java.util.List;
 import java.util.Random;
+import com.twilio.chat.ChatClient;
+import com.twilio.chat.NotificationPayload;
 
 import static com.dieam.reactnativepushnotification.modules.RNPushNotification.LOG_TAG;
 
@@ -26,6 +25,30 @@ public class RNPushNotificationListenerService extends GcmListenerService {
 
     @Override
     public void onMessageReceived(String from, final Bundle bundle) {
+      //logger.d("onMessageReceived for GCM");
+      NotificationPayload payload = new NotificationPayload(bundle);
+      NotificationPayload.Type type = payload.getType();
+      if (type != NotificationPayload.Type.UNKNOWN){
+        String title = "Twilio Notification";
+        if (type == NotificationPayload.Type.NEW_MESSAGE)
+            title = "Twilio: New Message";
+        if (type == NotificationPayload.Type.ADDED_TO_CHANNEL)
+            title = "Twilio: Added to Channel";
+        if (type == NotificationPayload.Type.INVITED_TO_CHANNEL)
+            title = "Twilio: Invited to Channel";
+        if (type == NotificationPayload.Type.REMOVED_FROM_CHANNEL)
+            title = "Twilio: Removed from Channel";
+
+        bundle.putString("message", payload.getBody());
+
+        bundle.putString("color",null);
+        bundle.putString("title", title);
+        String soundFileName = payload.getSound();
+        if (getResources().getIdentifier(soundFileName, "raw", getPackageName()) != 0) {
+            bundle.putString("soundName","android.resource://" + getPackageName() + "/raw/" + soundFileName);
+            //logger.d("Playing specified sound "+soundFileName);
+        }
+      }else{
         JSONObject data = getPushData(bundle.getString("data"));
         if (data != null) {
             if (!bundle.containsKey("message")) {
@@ -46,35 +69,35 @@ public class RNPushNotificationListenerService extends GcmListenerService {
                 ApplicationBadgeHelper.INSTANCE.setApplicationIconBadgeNumber(this, badge);
             }
         }
+      }
+      Log.v(LOG_TAG, "onMessageReceived: " + bundle);
 
-        Log.v(LOG_TAG, "onMessageReceived: " + bundle);
-
-        // We need to run this on the main thread, as the React code assumes that is true.
-        // Namely, DevServerHelper constructs a Handler() without a Looper, which triggers:
-        // "Can't create handler inside thread that has not called Looper.prepare()"
-        Handler handler = new Handler(Looper.getMainLooper());
-        handler.post(new Runnable() {
-            public void run() {
-                // Construct and load our normal React JS code bundle
-                ReactInstanceManager mReactInstanceManager = ((ReactApplication) getApplication()).getReactNativeHost().getReactInstanceManager();
-                ReactContext context = mReactInstanceManager.getCurrentReactContext();
-                // If it's constructed, send a notification
-                if (context != null) {
-                    handleRemotePushNotification((ReactApplicationContext) context, bundle);
-                } else {
-                    // Otherwise wait for construction, then send the notification
-                    mReactInstanceManager.addReactInstanceEventListener(new ReactInstanceManager.ReactInstanceEventListener() {
-                        public void onReactContextInitialized(ReactContext context) {
-                            handleRemotePushNotification((ReactApplicationContext) context, bundle);
-                        }
-                    });
-                    if (!mReactInstanceManager.hasStartedCreatingInitialContext()) {
-                        // Construct it in the background
-                        mReactInstanceManager.createReactContextInBackground();
+      // We need to run this on the main thread, as the React code assumes that is true.
+      // Namely, DevServerHelper constructs a Handler() without a Looper, which triggers:
+      // "Can't create handler inside thread that has not called Looper.prepare()"
+      Handler handler = new Handler(Looper.getMainLooper());
+      handler.post(new Runnable() {
+        public void run() {
+            // Construct and load our normal React JS code bundle
+            ReactInstanceManager mReactInstanceManager = ((ReactApplication) getApplication()).getReactNativeHost().getReactInstanceManager();
+            ReactContext context = mReactInstanceManager.getCurrentReactContext();
+            // If it's constructed, send a notification
+            if (context != null) {
+                handleRemotePushNotification((ReactApplicationContext) context, bundle);
+            } else {
+                // Otherwise wait for construction, then send the notification
+                mReactInstanceManager.addReactInstanceEventListener(new ReactInstanceManager.ReactInstanceEventListener() {
+                    public void onReactContextInitialized(ReactContext context) {
+                        handleRemotePushNotification((ReactApplicationContext) context, bundle);
                     }
+                });
+                if (!mReactInstanceManager.hasStartedCreatingInitialContext()) {
+                    // Construct it in the background
+                    mReactInstanceManager.createReactContextInBackground();
                 }
             }
-        });
+        }
+      });
     }
 
     private JSONObject getPushData(String dataString) {
