@@ -29,15 +29,7 @@ public class RNPushNotificationListenerService extends GcmListenerService {
       NotificationPayload payload = new NotificationPayload(bundle);
       NotificationPayload.Type type = payload.getType();
       if (type != NotificationPayload.Type.UNKNOWN){
-        String title = "Twilio Notification";
-        if (type == NotificationPayload.Type.NEW_MESSAGE)
-            title = "Twilio: New Message";
-        if (type == NotificationPayload.Type.ADDED_TO_CHANNEL)
-            title = "Twilio: Added to Channel";
-        if (type == NotificationPayload.Type.INVITED_TO_CHANNEL)
-            title = "Twilio: Invited to Channel";
-        if (type == NotificationPayload.Type.REMOVED_FROM_CHANNEL)
-            title = "Twilio: Removed from Channel";
+        String title = "ConnectHealth";
 
         bundle.putString("message", payload.getBody());
 
