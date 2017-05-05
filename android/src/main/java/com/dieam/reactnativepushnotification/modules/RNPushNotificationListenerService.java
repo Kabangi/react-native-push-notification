@@ -32,6 +32,7 @@ public class RNPushNotificationListenerService extends GcmListenerService {
         String title = "ConnectHealth";
 
         bundle.putString("message", payload.getBody());
+        bundle.putString("id","2775df2e-3168-11e7-93ae-92361f002671");
 
         bundle.putString("color",null);
         bundle.putString("title", title);
